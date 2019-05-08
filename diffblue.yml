@@ -1,0 +1,439 @@
+buildCmd: mvn -e -X -Dmaven.test.skip=true compile
+testCmd: true
+lineLength: 4096
+skipVerification: true
+cbmcArguments:
+  # Do not generate coverage comments on generated tests.
+  java-generate-no-comments: true
+phases:
+  -
+  #Phase 0 PRETTY AND SIMPLE - Simple models, quick cover, pretty Tests, Do Not Test Private Method Directly
+    timeout: 180
+    cbmcArguments:
+      # Use simple models containers (ArrayList, HashMap, HashSet,...) will have a maximum size of one.
+      classpath: '/tools/cbmc/models-simple-overlay.jar:/tools/cbmc/models.jar:.'
+      # Set a limit on the number of instructions that can be generated as part of a test trace.
+      depth: 1500
+      # never initialize reference-typed parameter to the entry point with null
+      java-assume-inputs-non-null: true
+      # Constrain the size of arrays created in the analyzed code.
+      java-max-vla-length: 10000
+      # Maximum allowed length for an array passed as test input.
+      max-nondet-array-length: 10
+      # Bound the length of input strings.
+      max-nondet-string-length: 10
+      # Add constraint that strings are printable
+      string-printable: true
+      # Make implicit runtime exceptions explicit.
+      throw-runtime-exceptions: false
+      # Set an upper bound on loop unwinding.
+      unwind: 1
+      # Do not test any methods that have the specified access level.
+      do-not-test-methods-with-access: [ private ]
+      # Instrument the entry point function only.
+      cover-function-only: false
+      # Instrument the file as opposed to the function only
+      cover-only: file
+      # Set string input value  
+      string-input-value: ["foo", "Bar", "BAZ", "1234", "a,b,c", "1", "2", "3", "a/b/c", "a'b'c"]
+  -
+  #Phase 1 PRETTY AND COMPLEX - Standard models, longer run time, pretty tests, Do Not Test Private Method Directly
+    timeout: 180
+    cbmcArguments:
+      # Use the standard models library
+      classpath: '/tools/cbmc/models.jar:.'
+      # Set a limit on the number of instructions that can be generated as part of a test trace.
+      depth: false
+      # never initialize reference-typed parameter to the entry point with null
+      java-assume-inputs-non-null: false
+      # Constrain the size of arrays created in the analyzed code.
+      java-max-vla-length: 10000
+      # Maximum allowed length for an array passed as test input.
+      max-nondet-array-length: 10
+      # Bound the length of input strings.
+      max-nondet-string-length: 10
+      # Add constraint that strings are printable
+      string-printable: true
+      # Set string input value  
+      string-input-value: ["foo", "Bar", "BAZ", "1234", "a,b,c", "1", "2", "3", "a/b/c", "a'b'c"]
+      # Make implicit runtime exceptions explicit.
+      throw-runtime-exceptions: false
+      # Set an upper bound on loop unwinding.
+      unwind: 2
+      # Do not test any methods that have the specified access level.
+      do-not-test-methods-with-access: [ private ]
+      # Instrument the entry point function only.
+      cover-function-only: false
+      # instrument the file as opposed to the function only
+      cover-only: file
+  -
+  #Phase 2 Simple and Private Directly
+    timeout: 180
+    cbmcArguments:
+      # Use simple models containers (ArrayList, HashMap, HashSet,...) will have a maximum size of one.
+      classpath: '/tools/cbmc/models-simple-overlay.jar:/tools/cbmc/models.jar:.'
+      # Set a limit on the number of instructions that can be generated as part of a test trace.
+      depth: 1500
+      # never initialize reference-typed parameter to the entry point with null
+      java-assume-inputs-non-null: true
+      # Constrain the size of arrays created in the analyzed code.
+      java-max-vla-length: 10000
+      # Maximum allowed length for an array passed as test input.
+      max-nondet-array-length: 10
+      # Bound the length of input strings.
+      max-nondet-string-length: 10
+      # Add constraint that strings are printable
+      string-printable: true
+      # Make implicit runtime exceptions explicit.
+      throw-runtime-exceptions: false
+      # Set an upper bound on loop unwinding.
+      unwind: 1
+      # Set string input value  
+      string-input-value: ["foo", "Bar", "BAZ", "1234", "a,b,c", "1", "2", "3", "a/b/c", "a'b'c"]
+      # If the logs contain output of the following then proceed to phase X
+    nextPhase:
+      # If the function is not analysable then do not pass onto the next phase
+      not_analyzed: null
+  -
+  #Phase 3 Complex and Private Directly
+    timeout: 180
+    cbmcArguments:
+      # Use the standard models library.
+      classpath: '/tools/cbmc/models.jar:.'
+      # Set a limit on the number of instructions that can be generated as part of a test trace.
+      depth: 3000
+      # Constrain the size of arrays created in the analyzed code.
+      java-max-vla-length: 10000
+      # Maximum allowed length for an array passed as test input.
+      max-nondet-array-length: 30
+      # Bound the length of input strings.
+      max-nondet-string-length: 30
+      # Make implicit runtime exceptions explicit.
+      throw-runtime-exceptions: false
+      # Set an upper bound on loop unwinding.
+      unwind: 3
+      # Set string input value  
+      string-input-value: ["foo", "Bar", "BAZ", "1234", "a,b,c", "1", "2", "3", "a/b/c", "a'b'c"]
+  -
+  #Phase 4 EXCEPTIONS
+    timeout: 180
+    cbmcArguments:
+      # Use the standard models library.
+      classpath: '/tools/cbmc/models.jar:.'
+      # Set a limit on the number of instructions that can be generated as part of a test trace.
+      depth: false
+      # Constrain the size of arrays created in the analyzed code.
+      java-max-vla-length: 10000
+      # Maximum allowed length for an array passed as test input.
+      max-nondet-array-length: 30
+      # Bound the length of input strings.
+      max-nondet-string-length: 30
+      # Add constraint that strings are printable
+      string-printable: false
+      # Make implicit runtime exceptions explicit.
+      throw-runtime-exceptions: true
+      # Set an upper bound on loop unwinding.
+  -
+    #PHASE 5 Big numbers and less contraints on inputs 
+    timeout: 300
+    cbmcArguments:
+      # Use the standard models library.
+      classpath: '/tools/cbmc/models.jar:.'
+      # Set a limit on the number of instructions that can be generated as part of a test trace.
+      depth: false
+      # never initialize reference-typed parameter to the entry point with null
+      java-assume-inputs-non-null: false
+      # Constrain the size of arrays created in the analyzed code.
+      java-max-vla-length: 10000
+      # Maximum allowed length for an array passed as test input.
+      max-nondet-array-length: 100
+      # Bound the length of input strings.
+      max-nondet-string-length: 100
+      # Add constraint that strings are printable
+      string-printable: false
+      # Make implicit runtime exceptions explicit.
+      throw-runtime-exceptions: false
+      # Set an upper bound on loop unwinding.
+      unwind: 6
+units:
+#Target TGF: 111.198412698
+# - methods: 21
+# - complexity: 325
+# - construction: 13.0
+# - dependency: 8.47619047619
+  - target:
+    - dir: target/classes
+      file: com/amazon/opendistroforelasticsearch/security/user/User.class
+      sourceDir: src/main/java
+      sourceFile: com/amazon/opendistroforelasticsearch/security/user/User.java
+#Target TGF: 102.333333333
+# - methods: 20
+# - complexity: 357
+# - construction: 8.86666666667
+# - dependency: 7.16666666667
+  - target:
+    - dir: target/classes
+      file: com/amazon/opendistroforelasticsearch/security/securityconf/ConfigModel$IndexPattern.class
+      sourceDir: src/main/java
+      sourceFile: com/amazon/opendistroforelasticsearch/security/securityconf/ConfigModel.java
+#Target TGF: 157.027777778
+# - methods: 23
+# - complexity: 429
+# - construction: 10.3333333333
+# - dependency: 5.41666666667
+  - target:
+    - dir: target/classes
+      file: com/amazon/opendistroforelasticsearch/security/resolver/IndexResolverReplacer$Resolved.class
+      sourceDir: src/main/java
+      sourceFile: com/amazon/opendistroforelasticsearch/security/resolver/IndexResolverReplacer.java
+#Target TGF: 71.9326839827
+# - methods: 24
+# - complexity: 874
+# - construction: 6.72196969697
+# - dependency: 5.83452380952
+  - target:
+    - dir: target/classes
+      file: com/amazon/opendistroforelasticsearch/security/privileges/PrivilegesEvaluator.class
+      sourceDir: src/main/java
+      sourceFile: com/amazon/opendistroforelasticsearch/security/privileges/PrivilegesEvaluator.java
+#Target TGF: 119.472222222
+# - methods: 14
+# - complexity: 325
+# - construction: 4.66666666667
+# - dependency: 2.83333333333
+  - target:
+    - dir: target/classes
+      file: com/amazon/opendistroforelasticsearch/security/support/ModuleInfo.class
+      sourceDir: src/main/java
+      sourceFile: com/amazon/opendistroforelasticsearch/security/support/ModuleInfo.java
+#Target TGF: 193.925
+# - methods: 25
+# - complexity: 663
+# - construction: 13.5
+# - dependency: 7.36666666667
+  - target:
+    - dir: target/classes
+      file: com/amazon/opendistroforelasticsearch/security/support/PemKeyReader.class
+      sourceDir: src/main/java
+      sourceFile: com/amazon/opendistroforelasticsearch/security/support/PemKeyReader.java
+#Target TGF: 118.706869705
+# - methods: 46
+# - complexity: 1640
+# - construction: 8.86822126095
+# - dependency: 5.34226190476
+  - target:
+    - dir: target/classes
+      file: com/amazon/opendistroforelasticsearch/security/OpenDistroSecurityPlugin.class
+      sourceDir: src/main/java
+      sourceFile: com/amazon/opendistroforelasticsearch/security/OpenDistroSecurityPlugin.java
+#Target TGF: 115.083333333
+# - methods: 16
+# - complexity: 267
+# - construction: 12.3333333333
+# - dependency: 7.41666666667
+  - target:
+    - dir: target/classes
+      file: com/amazon/opendistroforelasticsearch/security/user/AuthCredentials.class
+      sourceDir: src/main/java
+      sourceFile: com/amazon/opendistroforelasticsearch/security/user/AuthCredentials.java
+#Target TGF: 443.25
+# - methods: 33
+# - complexity: 1015
+# - construction: 29.0
+# - dependency: 15.8
+  - target:
+    - dir: target/classes
+      file: com/amazon/opendistroforelasticsearch/security/support/WildcardMatcher.class
+      sourceDir: src/main/java
+      sourceFile: com/amazon/opendistroforelasticsearch/security/support/WildcardMatcher.java
+#Target TGF: 97.1315789474
+# - methods: 18
+# - complexity: 419
+# - construction: 11.1
+# - dependency: 7.95263157895
+  - target:
+    - dir: target/classes
+      file: com/amazon/opendistroforelasticsearch/security/compliance/ComplianceConfig.class
+      sourceDir: src/main/java
+      sourceFile: com/amazon/opendistroforelasticsearch/security/compliance/ComplianceConfig.java
+dependenciesOnClasspath:
+-
+  source: classes
+  classFile: com/amazon/opendistroforelasticsearch/security/user/AuthCredentials.class
+-
+  source: classes
+  classFile: com/amazon/opendistroforelasticsearch/security/http/XFFResolver.class
+-
+  source: classes
+  classFile: com/amazon/opendistroforelasticsearch/security/compliance/ComplianceIndexingOperationListener.class
+-
+  source: classes
+  classFile: com/amazon/opendistroforelasticsearch/security/configuration/OpenDistroSecurityIndexSearcherWrapper.class
+-
+  source: classes
+  classFile: com/amazon/opendistroforelasticsearch/security/rest/KibanaInfoAction.class
+-
+  source: classes
+  classFile: com/amazon/opendistroforelasticsearch/security/filter/OpenDistroSecurityRestFilter.class
+-
+  source: classes
+  classFile: com/amazon/opendistroforelasticsearch/security/resolver/IndexResolverReplacer$Resolved.class
+-
+  source: classes
+  classFile: com/amazon/opendistroforelasticsearch/security/privileges/PrivilegesEvaluatorResponse.class
+-
+  source: classes
+  classFile: com/amazon/opendistroforelasticsearch/security/configuration/CompatConfig.class
+-
+  source: classes
+  classFile: com/amazon/opendistroforelasticsearch/security/securityconf/ConfigModel$SecurityRoles.class
+-
+  source: classes
+  classFile: com/amazon/opendistroforelasticsearch/security/auditlog/AuditLog.class
+-
+  source: classes
+  classFile: com/amazon/opendistroforelasticsearch/security/compliance/ComplianceConfig$1.class
+-
+  source: classes
+  classFile: com/amazon/opendistroforelasticsearch/security/privileges/TermsAggregationEvaluator.class
+-
+  source: classes
+  classFile: com/amazon/opendistroforelasticsearch/security/privileges/PrivilegesEvaluator.class
+-
+  source: classes
+  classFile: com/amazon/opendistroforelasticsearch/security/configuration/AdminDNs.class
+-
+  source: classes
+  classFile: com/amazon/opendistroforelasticsearch/security/privileges/PrivilegesEvaluator$TenantHolder.class
+-
+  source: classes
+  classFile: com/amazon/opendistroforelasticsearch/security/user/User.class
+-
+  source: classes
+  classFile: com/amazon/opendistroforelasticsearch/security/OpenDistroSecurityPlugin$2.class
+-
+  source: classes
+  classFile: com/amazon/opendistroforelasticsearch/security/configuration/ConfigurationRepository.class
+-
+  source: classes
+  classFile: com/amazon/opendistroforelasticsearch/security/rest/TenantInfoAction.class
+-
+  source: classes
+  classFile: com/amazon/opendistroforelasticsearch/security/privileges/DlsFlsEvaluator.class
+-
+  source: classes
+  classFile: com/amazon/opendistroforelasticsearch/security/support/OpenDistroSecurityUtils.class
+-
+  source: classes
+  classFile: com/amazon/opendistroforelasticsearch/security/transport/DefaultInterClusterRequestEvaluator.class
+-
+  source: classes
+  classFile: com/amazon/opendistroforelasticsearch/security/rest/OpenDistroSecurityInfoAction.class
+-
+  source: classes
+  classFile: com/amazon/opendistroforelasticsearch/security/privileges/PrivilegesEvaluator$RoleMappingHolder.class
+-
+  source: classes
+  classFile: com/amazon/opendistroforelasticsearch/security/privileges/PrivilegesInterceptor.class
+-
+  source: classes
+  classFile: com/amazon/opendistroforelasticsearch/security/support/PemKeyReader.class
+-
+  source: classes
+  classFile: com/amazon/opendistroforelasticsearch/security/OpenDistroSecurityPlugin$7.class
+-
+  source: classes
+  classFile: com/amazon/opendistroforelasticsearch/security/configuration/ActionGroupHolder.class
+-
+  source: classes
+  classFile: com/amazon/opendistroforelasticsearch/security/filter/OpenDistroSecurityFilter.class
+-
+  source: classes
+  classFile: com/amazon/opendistroforelasticsearch/security/support/HeaderHelper.class
+-
+  source: classes
+  classFile: com/amazon/opendistroforelasticsearch/security/securityconf/ConfigModel$SecurityRole.class
+-
+  source: classes
+  classFile: com/amazon/opendistroforelasticsearch/security/OpenDistroSecurityPlugin$8.class
+-
+  source: classes
+  classFile: com/amazon/opendistroforelasticsearch/security/support/ModuleType.class
+-
+  source: classes
+  classFile: com/amazon/opendistroforelasticsearch/security/OpenDistroSecurityPlugin$5.class
+-
+  source: classes
+  classFile: com/amazon/opendistroforelasticsearch/security/OpenDistroSecurityPlugin$4.class
+-
+  source: classes
+  classFile: com/amazon/opendistroforelasticsearch/security/privileges/SnapshotRestoreEvaluator.class
+-
+  source: classes
+  classFile: com/amazon/opendistroforelasticsearch/security/OpenDistroSecurityPlugin$6.class
+-
+  source: classes
+  classFile: com/amazon/opendistroforelasticsearch/security/support/WildcardMatcher.class
+-
+  source: classes
+  classFile: com/amazon/opendistroforelasticsearch/security/support/ConfigConstants$RolesMappingResolution.class
+-
+  source: classes
+  classFile: com/amazon/opendistroforelasticsearch/security/OpenDistroSecurityPlugin$3.class
+-
+  source: classes
+  classFile: com/amazon/opendistroforelasticsearch/security/privileges/OpenDistroSecurityIndexAccessEvaluator.class
+-
+  source: classes
+  classFile: com/amazon/opendistroforelasticsearch/security/OpenDistroSecurityPlugin$1.class
+-
+  source: classes
+  classFile: com/amazon/opendistroforelasticsearch/security/configuration/ConfigurationChangeListener.class
+-
+  source: classes
+  classFile: com/amazon/opendistroforelasticsearch/security/transport/OpenDistroSecurityInterceptor.class
+-
+  source: classes
+  classFile: com/amazon/opendistroforelasticsearch/security/OpenDistroSecurityPlugin.class
+-
+  source: classes
+  classFile: com/amazon/opendistroforelasticsearch/security/securityconf/ConfigModel$IndexPattern.class
+-
+  source: classes
+  classFile: com/amazon/opendistroforelasticsearch/security/rest/OpenDistroSecurityHealthAction.class
+-
+  source: classes
+  classFile: com/amazon/opendistroforelasticsearch/security/http/OpenDistroSecurityNonSslHttpServerTransport.class
+-
+  source: classes
+  classFile: com/amazon/opendistroforelasticsearch/security/auth/BackendRegistry.class
+-
+  source: classes
+  classFile: com/amazon/opendistroforelasticsearch/security/resolver/IndexResolverReplacer.class
+-
+  source: classes
+  classFile: com/amazon/opendistroforelasticsearch/security/auditlog/AuditLogSslExceptionHandler.class
+-
+  source: classes
+  classFile: com/amazon/opendistroforelasticsearch/security/user/CustomAttributesAware.class
+-
+  source: classes
+  classFile: com/amazon/opendistroforelasticsearch/security/securityconf/ConfigModel.class
+-
+  source: classes
+  classFile: com/amazon/opendistroforelasticsearch/security/http/OpenDistroSecurityHttpServerTransport.class
+-
+  source: classes
+  classFile: com/amazon/opendistroforelasticsearch/security/compliance/ComplianceConfig.class
+-
+  source: classes
+  classFile: com/amazon/opendistroforelasticsearch/security/configuration/IndexBaseConfigurationRepository.class
+-
+  source: classes
+  classFile: com/amazon/opendistroforelasticsearch/security/auth/internal/InternalAuthenticationBackend.class
+-
+  source: classes
+  classFile: com/amazon/opendistroforelasticsearch/security/support/ReflectionHelper.class
+-
+  source: classes
+  classFile: com/amazon/opendistroforelasticsearch/security/configuration/ClusterInfoHolder.class
