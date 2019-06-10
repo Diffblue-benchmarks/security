@@ -5,19 +5,17 @@ skipVerification: true
 cbmcArguments:
   # Do not generate coverage comments on generated tests.
   java-generate-no-comments: true
+  # Constrain the size of arrays created in the analyzed code.
+  java-max-vla-length: 100000
 phases:
   -
-  #Phase 0 PRETTY AND SIMPLE - Simple models, quick cover, pretty Tests, Do Not Test Private Method Directly
+    #Phase 0 PRETTY, SIMPLE and SMART - pretty tests, do not test private methods directly, Smart-Harness
     timeout: 180
     cbmcArguments:
-      # Use simple models containers (ArrayList, HashMap, HashSet,...) will have a maximum size of one.
+      # Use simple models first containers (ArrayList, HashMap, HashSet,...) will have a maximum size of one.
       classpath: '/tools/cbmc/models-simple-overlay.jar:/tools/cbmc/models.jar:.'
       # Set a limit on the number of instructions that can be generated as part of a test trace.
       depth: 1500
-      # never initialize reference-typed parameter to the entry point with null
-      java-assume-inputs-non-null: true
-      # Constrain the size of arrays created in the analyzed code.
-      java-max-vla-length: 10000
       # Maximum allowed length for an array passed as test input.
       max-nondet-array-length: 10
       # Bound the length of input strings.
@@ -35,9 +33,11 @@ phases:
       # Instrument the file as opposed to the function only
       cover-only: file
       # Set string input value  
-      string-input-value: ["foo", "Bar", "BAZ", "1234", "a,b,c", "1", "2", "3", "a/b/c", "a'b'c"]
+      string-input-value: ["foo", "Bar", "BAZ", "1234", "1a 2b 3c", ""A1B2C3", "a,b,c", "1", "2", "3", "a/b/c", "a'b'c", ",", "/", "'"]
+      # Instantiate classes using the simplest constructor strategy 
+      smart-harness: simplest-constructor-and-nondet
   -
-  #Phase 1 PRETTY AND COMPLEX - Standard models, longer run time, pretty tests, Do Not Test Private Method Directly
+    #Phase 1 PRETTY AND COMPLEX - standard models only, pretty tests, do not test private methods directly, input factory
     timeout: 180
     cbmcArguments:
       # Use the standard models library
@@ -45,9 +45,7 @@ phases:
       # Set a limit on the number of instructions that can be generated as part of a test trace.
       depth: false
       # never initialize reference-typed parameter to the entry point with null
-      java-assume-inputs-non-null: false
-      # Constrain the size of arrays created in the analyzed code.
-      java-max-vla-length: 10000
+      java-assume-inputs-non-null: true
       # Maximum allowed length for an array passed as test input.
       max-nondet-array-length: 10
       # Bound the length of input strings.
@@ -55,7 +53,7 @@ phases:
       # Add constraint that strings are printable
       string-printable: true
       # Set string input value  
-      string-input-value: ["foo", "Bar", "BAZ", "1234", "a,b,c", "1", "2", "3", "a/b/c", "a'b'c"]
+      string-input-value: ["foo", "Bar", "BAZ", "1234", "1a 2b 3c", ""A1B2C3", "a,b,c", "1", "2", "3", "a/b/c", "a'b'c", ",", "/", "'"]
       # Make implicit runtime exceptions explicit.
       throw-runtime-exceptions: false
       # Set an upper bound on loop unwinding.
@@ -66,18 +64,72 @@ phases:
       cover-function-only: false
       # instrument the file as opposed to the function only
       cover-only: file
+      # Limit input factory recursive depth (default 0 = no recursion allowed)
+      java-test-input-factory-bmc-recursion-limit: 4
   -
-  #Phase 2 Simple and Private Directly
+    #Phase 2 FIFO Strategy - pretty tests, do not test private methods directly, fifo
+    timeout: 100
+    cbmcArguments:
+      # Use the standard models library
+      classpath: '/tools/cbmc/models.jar:.'
+      # Set a limit on the number of instructions that can be generated as part of a test trace.
+      depth: false
+      # never initialize reference-typed parameter to the entry point with null
+      java-assume-inputs-non-null: true
+      # Maximum allowed length for an array passed as test input.
+      max-nondet-array-length: 30
+      # Add constraint that strings are printable
+      max-nondet-string-length: 100
+      # Explores the program tree breadth-first.
+      paths: fifo
+      # Set string input value  
+      string-input-value: ["foo", "Bar", "BAZ", "1234", "1a 2b 3c", ""A1B2C3", "a,b,c", "1", "2", "3", "a/b/c", "a'b'c", ",", "/", "'"]
+      # Add constraint that strings are printable
+      string-printable: true
+      # Make implicit runtime exceptions explicit.
+      throw-runtime-exceptions: false
+      # Set an upper bound on loop unwinding.
+      unwind: false
+      # Do not test any methods that have the specified access level.
+      do-not-test-methods-with-access: [ private ]
+      # Instrument the entry point function only.
+      cover-function-only: false
+      # instrument the file as opposed to the function only
+      cover-only: file
+  -
+    #Phase 3 Exceptions - do not test private methods directly
     timeout: 180
     cbmcArguments:
-      # Use simple models containers (ArrayList, HashMap, HashSet,...) will have a maximum size of one.
+      # Use simple models containers first (ArrayList, HashMap, HashSet,...) will have a maximum size of one.
+      classpath: '/tools/cbmc/models-simple-overlay.jar:/tools/cbmc/models.jar:.'
+      # Set a limit on the number of instructions that can be generated as part of a test trace.
+      depth: false
+      # Maximum allowed length for an array passed as test input.
+      max-nondet-array-length: 30
+      # Bound the length of input strings.
+      max-nondet-string-length: 30
+      # Add constraint that strings are printable
+      string-printable: false
+      # Make implicit runtime exceptions explicit.
+      throw-runtime-exceptions: true
+      # Set an upper bound on loop unwinding.
+      unwind: 3
+      # Do not test any methods that have the specified access level.
+      do-not-test-methods-with-access: [ private ]
+      # Instrument the entry point function only.
+      cover-function-only: false
+      # instrument the file as opposed to the function only
+      cover-only: file
+  -
+    #Phase 4 Direct testing - test private methods directly, increased reflection
+    timeout: 180
+    cbmcArguments:
+      # Use simple models containers first (ArrayList, HashMap, HashSet,...) will have a maximum size of one.
       classpath: '/tools/cbmc/models-simple-overlay.jar:/tools/cbmc/models.jar:.'
       # Set a limit on the number of instructions that can be generated as part of a test trace.
       depth: 1500
       # never initialize reference-typed parameter to the entry point with null
       java-assume-inputs-non-null: true
-      # Constrain the size of arrays created in the analyzed code.
-      java-max-vla-length: 10000
       # Maximum allowed length for an array passed as test input.
       max-nondet-array-length: 10
       # Bound the length of input strings.
@@ -89,351 +141,894 @@ phases:
       # Set an upper bound on loop unwinding.
       unwind: 1
       # Set string input value  
-      string-input-value: ["foo", "Bar", "BAZ", "1234", "a,b,c", "1", "2", "3", "a/b/c", "a'b'c"]
+      string-input-value: ["foo", "Bar", "BAZ", "1234", "1a 2b 3c", ""A1B2C3", "a,b,c", "1", "2", "3", "a/b/c", "a'b'c", ",", "/", "'"]
       # If the logs contain output of the following then proceed to phase X
     nextPhase:
       # If the function is not analysable then do not pass onto the next phase
       not_analyzed: null
   -
-  #Phase 3 Complex and Private Directly
+    #PHASE 5 Mocking - aggressive mocking, do not test private methods directly
     timeout: 180
     cbmcArguments:
-      # Use the standard models library.
-      classpath: '/tools/cbmc/models.jar:.'
+      # Use simple models containers first (ArrayList, HashMap, HashSet,...) will have a maximum size of one.
+      classpath: '/tools/cbmc/models-simple-overlay.jar:/tools/cbmc/models.jar:.'
       # Set a limit on the number of instructions that can be generated as part of a test trace.
       depth: 3000
-      # Constrain the size of arrays created in the analyzed code.
-      java-max-vla-length: 10000
-      # Maximum allowed length for an array passed as test input.
-      max-nondet-array-length: 30
-      # Bound the length of input strings.
-      max-nondet-string-length: 30
-      # Make implicit runtime exceptions explicit.
-      throw-runtime-exceptions: false
-      # Set an upper bound on loop unwinding.
-      unwind: 3
-      # Set string input value  
-      string-input-value: ["foo", "Bar", "BAZ", "1234", "a,b,c", "1", "2", "3", "a/b/c", "a'b'c"]
-  -
-  #Phase 4 EXCEPTIONS
-    timeout: 180
-    cbmcArguments:
-      # Use the standard models library.
-      classpath: '/tools/cbmc/models.jar:.'
-      # Set a limit on the number of instructions that can be generated as part of a test trace.
-      depth: false
-      # Constrain the size of arrays created in the analyzed code.
-      java-max-vla-length: 10000
-      # Maximum allowed length for an array passed as test input.
-      max-nondet-array-length: 30
-      # Bound the length of input strings.
-      max-nondet-string-length: 30
-      # Add constraint that strings are printable
-      string-printable: false
-      # Make implicit runtime exceptions explicit.
-      throw-runtime-exceptions: true
-      # Set an upper bound on loop unwinding.
-  -
-    #PHASE 5 Big numbers and less contraints on inputs 
-    timeout: 300
-    cbmcArguments:
-      # Use the standard models library.
-      classpath: '/tools/cbmc/models.jar:.'
-      # Set a limit on the number of instructions that can be generated as part of a test trace.
-      depth: false
       # never initialize reference-typed parameter to the entry point with null
-      java-assume-inputs-non-null: false
-      # Constrain the size of arrays created in the analyzed code.
-      java-max-vla-length: 10000
+      java-assume-inputs-non-null: true
+      # Only load the class (and related inner/outer classes) containing the method under test,
+      load-containing-class-only: true
       # Maximum allowed length for an array passed as test input.
-      max-nondet-array-length: 100
+      max-nondet-array-length: 30
       # Bound the length of input strings.
       max-nondet-string-length: 100
       # Add constraint that strings are printable
       string-printable: false
       # Make implicit runtime exceptions explicit.
-      throw-runtime-exceptions: false
+      throw-runtime-exceptions: true
       # Set an upper bound on loop unwinding.
-      unwind: 6
+      unwind: 3
+      # Do not test any methods that have the specified access level.
+      do-not-test-methods-with-access: [ private ]
+      # Instrument the entry point function only.
+      cover-function-only: false
+      # instrument the file as opposed to the function only
+      cover-only: file
 units:
-#Target TGF: 111.198412698
-# - methods: 21
-# - complexity: 325
-# - construction: 13.0
-# - dependency: 8.47619047619
-  - target:
-    - dir: target/classes
-      file: com/amazon/opendistroforelasticsearch/security/user/User.class
-      sourceDir: src/main/java
-      sourceFile: com/amazon/opendistroforelasticsearch/security/user/User.java
-#Target TGF: 102.333333333
-# - methods: 20
-# - complexity: 357
-# - construction: 8.86666666667
-# - dependency: 7.16666666667
-  - target:
-    - dir: target/classes
-      file: com/amazon/opendistroforelasticsearch/security/securityconf/ConfigModel$IndexPattern.class
-      sourceDir: src/main/java
-      sourceFile: com/amazon/opendistroforelasticsearch/security/securityconf/ConfigModel.java
-#Target TGF: 157.027777778
-# - methods: 23
-# - complexity: 429
-# - construction: 10.3333333333
-# - dependency: 5.41666666667
-  - target:
-    - dir: target/classes
-      file: com/amazon/opendistroforelasticsearch/security/resolver/IndexResolverReplacer$Resolved.class
-      sourceDir: src/main/java
-      sourceFile: com/amazon/opendistroforelasticsearch/security/resolver/IndexResolverReplacer.java
-#Target TGF: 71.9326839827
-# - methods: 24
-# - complexity: 874
-# - construction: 6.72196969697
-# - dependency: 5.83452380952
-  - target:
-    - dir: target/classes
-      file: com/amazon/opendistroforelasticsearch/security/privileges/PrivilegesEvaluator.class
-      sourceDir: src/main/java
-      sourceFile: com/amazon/opendistroforelasticsearch/security/privileges/PrivilegesEvaluator.java
-#Target TGF: 119.472222222
-# - methods: 14
-# - complexity: 325
-# - construction: 4.66666666667
-# - dependency: 2.83333333333
-  - target:
-    - dir: target/classes
-      file: com/amazon/opendistroforelasticsearch/security/support/ModuleInfo.class
-      sourceDir: src/main/java
-      sourceFile: com/amazon/opendistroforelasticsearch/security/support/ModuleInfo.java
-#Target TGF: 193.925
-# - methods: 25
-# - complexity: 663
-# - construction: 13.5
-# - dependency: 7.36666666667
-  - target:
-    - dir: target/classes
-      file: com/amazon/opendistroforelasticsearch/security/support/PemKeyReader.class
-      sourceDir: src/main/java
-      sourceFile: com/amazon/opendistroforelasticsearch/security/support/PemKeyReader.java
-#Target TGF: 118.706869705
-# - methods: 46
-# - complexity: 1640
-# - construction: 8.86822126095
-# - dependency: 5.34226190476
-  - target:
-    - dir: target/classes
-      file: com/amazon/opendistroforelasticsearch/security/OpenDistroSecurityPlugin.class
-      sourceDir: src/main/java
-      sourceFile: com/amazon/opendistroforelasticsearch/security/OpenDistroSecurityPlugin.java
-#Target TGF: 115.083333333
-# - methods: 16
-# - complexity: 267
-# - construction: 12.3333333333
-# - dependency: 7.41666666667
-  - target:
-    - dir: target/classes
-      file: com/amazon/opendistroforelasticsearch/security/user/AuthCredentials.class
-      sourceDir: src/main/java
-      sourceFile: com/amazon/opendistroforelasticsearch/security/user/AuthCredentials.java
-#Target TGF: 443.25
-# - methods: 33
-# - complexity: 1015
-# - construction: 29.0
-# - dependency: 15.8
-  - target:
-    - dir: target/classes
-      file: com/amazon/opendistroforelasticsearch/security/support/WildcardMatcher.class
-      sourceDir: src/main/java
-      sourceFile: com/amazon/opendistroforelasticsearch/security/support/WildcardMatcher.java
-#Target TGF: 97.1315789474
-# - methods: 18
-# - complexity: 419
-# - construction: 11.1
-# - dependency: 7.95263157895
-  - target:
-    - dir: target/classes
-      file: com/amazon/opendistroforelasticsearch/security/compliance/ComplianceConfig.class
-      sourceDir: src/main/java
-      sourceFile: com/amazon/opendistroforelasticsearch/security/compliance/ComplianceConfig.java
-dependenciesOnClasspath:
--
-  source: classes
-  classFile: com/amazon/opendistroforelasticsearch/security/user/AuthCredentials.class
--
-  source: classes
-  classFile: com/amazon/opendistroforelasticsearch/security/http/XFFResolver.class
--
-  source: classes
-  classFile: com/amazon/opendistroforelasticsearch/security/compliance/ComplianceIndexingOperationListener.class
--
-  source: classes
-  classFile: com/amazon/opendistroforelasticsearch/security/configuration/OpenDistroSecurityIndexSearcherWrapper.class
--
-  source: classes
-  classFile: com/amazon/opendistroforelasticsearch/security/rest/KibanaInfoAction.class
--
-  source: classes
-  classFile: com/amazon/opendistroforelasticsearch/security/filter/OpenDistroSecurityRestFilter.class
--
-  source: classes
-  classFile: com/amazon/opendistroforelasticsearch/security/resolver/IndexResolverReplacer$Resolved.class
--
-  source: classes
-  classFile: com/amazon/opendistroforelasticsearch/security/privileges/PrivilegesEvaluatorResponse.class
--
-  source: classes
-  classFile: com/amazon/opendistroforelasticsearch/security/configuration/CompatConfig.class
--
-  source: classes
-  classFile: com/amazon/opendistroforelasticsearch/security/securityconf/ConfigModel$SecurityRoles.class
--
-  source: classes
-  classFile: com/amazon/opendistroforelasticsearch/security/auditlog/AuditLog.class
--
-  source: classes
-  classFile: com/amazon/opendistroforelasticsearch/security/compliance/ComplianceConfig$1.class
--
-  source: classes
-  classFile: com/amazon/opendistroforelasticsearch/security/privileges/TermsAggregationEvaluator.class
--
-  source: classes
-  classFile: com/amazon/opendistroforelasticsearch/security/privileges/PrivilegesEvaluator.class
--
-  source: classes
-  classFile: com/amazon/opendistroforelasticsearch/security/configuration/AdminDNs.class
--
-  source: classes
-  classFile: com/amazon/opendistroforelasticsearch/security/privileges/PrivilegesEvaluator$TenantHolder.class
--
-  source: classes
-  classFile: com/amazon/opendistroforelasticsearch/security/user/User.class
--
-  source: classes
-  classFile: com/amazon/opendistroforelasticsearch/security/OpenDistroSecurityPlugin$2.class
--
-  source: classes
-  classFile: com/amazon/opendistroforelasticsearch/security/configuration/ConfigurationRepository.class
--
-  source: classes
-  classFile: com/amazon/opendistroforelasticsearch/security/rest/TenantInfoAction.class
--
-  source: classes
-  classFile: com/amazon/opendistroforelasticsearch/security/privileges/DlsFlsEvaluator.class
--
-  source: classes
-  classFile: com/amazon/opendistroforelasticsearch/security/support/OpenDistroSecurityUtils.class
--
-  source: classes
-  classFile: com/amazon/opendistroforelasticsearch/security/transport/DefaultInterClusterRequestEvaluator.class
--
-  source: classes
-  classFile: com/amazon/opendistroforelasticsearch/security/rest/OpenDistroSecurityInfoAction.class
--
-  source: classes
-  classFile: com/amazon/opendistroforelasticsearch/security/privileges/PrivilegesEvaluator$RoleMappingHolder.class
--
-  source: classes
-  classFile: com/amazon/opendistroforelasticsearch/security/privileges/PrivilegesInterceptor.class
--
-  source: classes
-  classFile: com/amazon/opendistroforelasticsearch/security/support/PemKeyReader.class
--
-  source: classes
-  classFile: com/amazon/opendistroforelasticsearch/security/OpenDistroSecurityPlugin$7.class
--
-  source: classes
-  classFile: com/amazon/opendistroforelasticsearch/security/configuration/ActionGroupHolder.class
--
-  source: classes
-  classFile: com/amazon/opendistroforelasticsearch/security/filter/OpenDistroSecurityFilter.class
--
-  source: classes
-  classFile: com/amazon/opendistroforelasticsearch/security/support/HeaderHelper.class
--
-  source: classes
-  classFile: com/amazon/opendistroforelasticsearch/security/securityconf/ConfigModel$SecurityRole.class
--
-  source: classes
-  classFile: com/amazon/opendistroforelasticsearch/security/OpenDistroSecurityPlugin$8.class
--
-  source: classes
-  classFile: com/amazon/opendistroforelasticsearch/security/support/ModuleType.class
--
-  source: classes
-  classFile: com/amazon/opendistroforelasticsearch/security/OpenDistroSecurityPlugin$5.class
--
-  source: classes
-  classFile: com/amazon/opendistroforelasticsearch/security/OpenDistroSecurityPlugin$4.class
--
-  source: classes
-  classFile: com/amazon/opendistroforelasticsearch/security/privileges/SnapshotRestoreEvaluator.class
--
-  source: classes
-  classFile: com/amazon/opendistroforelasticsearch/security/OpenDistroSecurityPlugin$6.class
--
-  source: classes
-  classFile: com/amazon/opendistroforelasticsearch/security/support/WildcardMatcher.class
--
-  source: classes
-  classFile: com/amazon/opendistroforelasticsearch/security/support/ConfigConstants$RolesMappingResolution.class
--
-  source: classes
-  classFile: com/amazon/opendistroforelasticsearch/security/OpenDistroSecurityPlugin$3.class
--
-  source: classes
-  classFile: com/amazon/opendistroforelasticsearch/security/privileges/OpenDistroSecurityIndexAccessEvaluator.class
--
-  source: classes
-  classFile: com/amazon/opendistroforelasticsearch/security/OpenDistroSecurityPlugin$1.class
--
-  source: classes
-  classFile: com/amazon/opendistroforelasticsearch/security/configuration/ConfigurationChangeListener.class
--
-  source: classes
-  classFile: com/amazon/opendistroforelasticsearch/security/transport/OpenDistroSecurityInterceptor.class
--
-  source: classes
-  classFile: com/amazon/opendistroforelasticsearch/security/OpenDistroSecurityPlugin.class
--
-  source: classes
-  classFile: com/amazon/opendistroforelasticsearch/security/securityconf/ConfigModel$IndexPattern.class
--
-  source: classes
-  classFile: com/amazon/opendistroforelasticsearch/security/rest/OpenDistroSecurityHealthAction.class
--
-  source: classes
-  classFile: com/amazon/opendistroforelasticsearch/security/http/OpenDistroSecurityNonSslHttpServerTransport.class
--
-  source: classes
-  classFile: com/amazon/opendistroforelasticsearch/security/auth/BackendRegistry.class
--
-  source: classes
-  classFile: com/amazon/opendistroforelasticsearch/security/resolver/IndexResolverReplacer.class
--
-  source: classes
-  classFile: com/amazon/opendistroforelasticsearch/security/auditlog/AuditLogSslExceptionHandler.class
--
-  source: classes
-  classFile: com/amazon/opendistroforelasticsearch/security/user/CustomAttributesAware.class
--
-  source: classes
-  classFile: com/amazon/opendistroforelasticsearch/security/securityconf/ConfigModel.class
--
-  source: classes
-  classFile: com/amazon/opendistroforelasticsearch/security/http/OpenDistroSecurityHttpServerTransport.class
--
-  source: classes
-  classFile: com/amazon/opendistroforelasticsearch/security/compliance/ComplianceConfig.class
--
-  source: classes
-  classFile: com/amazon/opendistroforelasticsearch/security/configuration/IndexBaseConfigurationRepository.class
--
-  source: classes
-  classFile: com/amazon/opendistroforelasticsearch/security/auth/internal/InternalAuthenticationBackend.class
--
-  source: classes
-  classFile: com/amazon/opendistroforelasticsearch/security/support/ReflectionHelper.class
--
-  source: classes
-  classFile: com/amazon/opendistroforelasticsearch/security/configuration/ClusterInfoHolder.class
+ - target:
+   - dir: target/classes
+     file: com/amazon/opendistroforelasticsearch/security/auth/AuthDomain.class
+     sourceDir: src/main/java
+     sourceFile: com/amazon/opendistroforelasticsearch/security/auth/AuthDomain.java
+   - dir: target/classes
+     file: com/amazon/opendistroforelasticsearch/security/auth/AuthenticationBackend.class
+     sourceDir: src/main/java
+     sourceFile: com/amazon/opendistroforelasticsearch/security/auth/AuthenticationBackend.java
+   - dir: target/classes
+     file: com/amazon/opendistroforelasticsearch/security/auth/HTTPAuthenticator.class
+     sourceDir: src/main/java
+     sourceFile: com/amazon/opendistroforelasticsearch/security/auth/HTTPAuthenticator.java
+ - target:
+   - dir: target/classes
+     file: com/amazon/opendistroforelasticsearch/security/action/configupdate/ConfigUpdateRequest.class
+     sourceDir: src/main/java
+     sourceFile: com/amazon/opendistroforelasticsearch/security/action/configupdate/ConfigUpdateRequest.java
+ - target:
+   - dir: target/classes
+     file: com/amazon/opendistroforelasticsearch/security/action/configupdate/ConfigUpdateRequestBuilder.class
+     sourceDir: src/main/java
+     sourceFile: com/amazon/opendistroforelasticsearch/security/action/configupdate/ConfigUpdateRequestBuilder.java
+   - dir: target/classes
+     file: com/amazon/opendistroforelasticsearch/security/action/configupdate/ConfigUpdateAction.class
+     sourceDir: src/main/java
+     sourceFile: com/amazon/opendistroforelasticsearch/security/action/configupdate/ConfigUpdateAction.java
+   - dir: target/classes
+     file: com/amazon/opendistroforelasticsearch/security/action/configupdate/ConfigUpdateRequest.class
+     sourceDir: src/main/java
+     sourceFile: com/amazon/opendistroforelasticsearch/security/action/configupdate/ConfigUpdateRequest.java
+ - target:
+   - dir: target/classes
+     file: com/amazon/opendistroforelasticsearch/security/support/ConfigHelper.class
+     sourceDir: src/main/java
+     sourceFile: com/amazon/opendistroforelasticsearch/security/support/ConfigHelper.java
+ - target:
+   - dir: target/classes
+     file: com/amazon/opendistroforelasticsearch/security/privileges/PrivilegesEvaluatorResponse.class
+     sourceDir: src/main/java
+     sourceFile: com/amazon/opendistroforelasticsearch/security/privileges/PrivilegesEvaluatorResponse.java
+ - target:
+   - dir: target/test-classes
+     file: com/amazon/opendistroforelasticsearch/security/test/helper/file/FileHelper.class
+     sourceDir: src/test/java
+     sourceFile: com/amazon/opendistroforelasticsearch/security/test/helper/file/FileHelper.java
+ - target:
+   - dir: target/classes
+     file: com/amazon/opendistroforelasticsearch/security/tools/Hasher.class
+     sourceDir: src/main/java
+     sourceFile: com/amazon/opendistroforelasticsearch/security/tools/Hasher.java
+ - target:
+   - dir: target/classes
+     file: com/amazon/opendistroforelasticsearch/security/support/ReflectionHelper.class
+     sourceDir: src/main/java
+     sourceFile: com/amazon/opendistroforelasticsearch/security/support/ReflectionHelper.java
+   - dir: target/classes
+     file: com/amazon/opendistroforelasticsearch/security/configuration/DlsFlsRequestValve$NoopDlsFlsRequestValve.class
+     sourceDir: src/main/java
+     sourceFile: com/amazon/opendistroforelasticsearch/security/configuration/DlsFlsRequestValve.java
+   - dir: target/classes
+     file: com/amazon/opendistroforelasticsearch/security/auditlog/NullAuditLog.class
+     sourceDir: src/main/java
+     sourceFile: com/amazon/opendistroforelasticsearch/security/auditlog/NullAuditLog.java
+   - dir: target/classes
+     file: com/amazon/opendistroforelasticsearch/security/transport/DefaultInterClusterRequestEvaluator.class
+     sourceDir: src/main/java
+     sourceFile: com/amazon/opendistroforelasticsearch/security/transport/DefaultInterClusterRequestEvaluator.java
+   - dir: target/classes
+     file: com/amazon/opendistroforelasticsearch/security/privileges/PrivilegesEvaluator.class
+     sourceDir: src/main/java
+     sourceFile: com/amazon/opendistroforelasticsearch/security/privileges/PrivilegesEvaluator.java
+   - dir: target/classes
+     file: com/amazon/opendistroforelasticsearch/security/configuration/IndexBaseConfigurationRepository.class
+     sourceDir: src/main/java
+     sourceFile: com/amazon/opendistroforelasticsearch/security/configuration/IndexBaseConfigurationRepository.java
+   - dir: target/classes
+     file: com/amazon/opendistroforelasticsearch/security/transport/InterClusterRequestEvaluator.class
+     sourceDir: src/main/java
+     sourceFile: com/amazon/opendistroforelasticsearch/security/transport/InterClusterRequestEvaluator.java
+   - dir: target/classes
+     file: com/amazon/opendistroforelasticsearch/security/privileges/PrivilegesInterceptor.class
+     sourceDir: src/main/java
+     sourceFile: com/amazon/opendistroforelasticsearch/security/privileges/PrivilegesInterceptor.java
+   - dir: target/classes
+     file: com/amazon/opendistroforelasticsearch/security/support/ModuleType.class
+     sourceDir: src/main/java
+     sourceFile: com/amazon/opendistroforelasticsearch/security/support/ModuleType.java
+   - dir: target/classes
+     file: com/amazon/opendistroforelasticsearch/security/auditlog/AuditLog.class
+     sourceDir: src/main/java
+     sourceFile: com/amazon/opendistroforelasticsearch/security/auditlog/AuditLog.java
+   - dir: target/classes
+     file: com/amazon/opendistroforelasticsearch/security/configuration/DlsFlsRequestValve.class
+     sourceDir: src/main/java
+     sourceFile: com/amazon/opendistroforelasticsearch/security/configuration/DlsFlsRequestValve.java
+   - dir: target/classes
+     file: com/amazon/opendistroforelasticsearch/security/compliance/ComplianceIndexingOperationListener.class
+     sourceDir: src/main/java
+     sourceFile: com/amazon/opendistroforelasticsearch/security/compliance/ComplianceIndexingOperationListener.java
+   - dir: target/classes
+     file: com/amazon/opendistroforelasticsearch/security/support/ModuleInfo.class
+     sourceDir: src/main/java
+     sourceFile: com/amazon/opendistroforelasticsearch/security/support/ModuleInfo.java
+   - dir: target/classes
+     file: com/amazon/opendistroforelasticsearch/security/configuration/AdminDNs.class
+     sourceDir: src/main/java
+     sourceFile: com/amazon/opendistroforelasticsearch/security/configuration/AdminDNs.java
+   - dir: target/classes
+     file: com/amazon/opendistroforelasticsearch/security/compliance/ComplianceConfig.class
+     sourceDir: src/main/java
+     sourceFile: com/amazon/opendistroforelasticsearch/security/compliance/ComplianceConfig.java
+ - target:
+   - dir: target/classes
+     file: com/amazon/opendistroforelasticsearch/security/user/User.class
+     sourceDir: src/main/java
+     sourceFile: com/amazon/opendistroforelasticsearch/security/user/User.java
+   - dir: target/classes
+     file: com/amazon/opendistroforelasticsearch/security/user/AuthCredentials.class
+     sourceDir: src/main/java
+     sourceFile: com/amazon/opendistroforelasticsearch/security/user/AuthCredentials.java
+ - target:
+   - dir: target/classes
+     file: com/amazon/opendistroforelasticsearch/security/support/SourceFieldsContext.class
+     sourceDir: src/main/java
+     sourceFile: com/amazon/opendistroforelasticsearch/security/support/SourceFieldsContext.java
+ - target:
+   - dir: target/classes
+     file: com/amazon/opendistroforelasticsearch/security/user/AuthCredentials.class
+     sourceDir: src/main/java
+     sourceFile: com/amazon/opendistroforelasticsearch/security/user/AuthCredentials.java
+ - target:
+   - dir: target/classes
+     file: com/amazon/opendistroforelasticsearch/security/support/WildcardMatcher.class
+     sourceDir: src/main/java
+     sourceFile: com/amazon/opendistroforelasticsearch/security/support/WildcardMatcher.java
+ - target:
+   - dir: target/classes
+     file: com/amazon/opendistroforelasticsearch/security/privileges/PrivilegesEvaluator.class
+     sourceDir: src/main/java
+     sourceFile: com/amazon/opendistroforelasticsearch/security/privileges/PrivilegesEvaluator.java
+   - dir: target/classes
+     file: com/amazon/opendistroforelasticsearch/security/auditlog/AuditLog.class
+     sourceDir: src/main/java
+     sourceFile: com/amazon/opendistroforelasticsearch/security/auditlog/AuditLog.java
+   - dir: target/classes
+     file: com/amazon/opendistroforelasticsearch/security/securityconf/ConfigModel.class
+     sourceDir: src/main/java
+     sourceFile: com/amazon/opendistroforelasticsearch/security/securityconf/ConfigModel.java
+   - dir: target/classes
+     file: com/amazon/opendistroforelasticsearch/security/privileges/DlsFlsEvaluator.class
+     sourceDir: src/main/java
+     sourceFile: com/amazon/opendistroforelasticsearch/security/privileges/DlsFlsEvaluator.java
+   - dir: target/classes
+     file: com/amazon/opendistroforelasticsearch/security/resolver/IndexResolverReplacer$2.class
+     sourceDir: src/main/java
+     sourceFile: com/amazon/opendistroforelasticsearch/security/resolver/IndexResolverReplacer.java
+   - dir: target/classes
+     file: com/amazon/opendistroforelasticsearch/security/privileges/PrivilegesEvaluatorResponse.class
+     sourceDir: src/main/java
+     sourceFile: com/amazon/opendistroforelasticsearch/security/privileges/PrivilegesEvaluatorResponse.java
+   - dir: target/classes
+     file: com/amazon/opendistroforelasticsearch/security/support/HeaderHelper.class
+     sourceDir: src/main/java
+     sourceFile: com/amazon/opendistroforelasticsearch/security/support/HeaderHelper.java
+   - dir: target/classes
+     file: com/amazon/opendistroforelasticsearch/security/privileges/PrivilegesEvaluator$RoleMappingHolder.class
+     sourceDir: src/main/java
+     sourceFile: com/amazon/opendistroforelasticsearch/security/privileges/PrivilegesEvaluator.java
+   - dir: target/classes
+     file: com/amazon/opendistroforelasticsearch/security/configuration/ActionGroupHolder.class
+     sourceDir: src/main/java
+     sourceFile: com/amazon/opendistroforelasticsearch/security/configuration/ActionGroupHolder.java
+   - dir: target/classes
+     file: com/amazon/opendistroforelasticsearch/security/privileges/OpenDistroSecurityIndexAccessEvaluator.class
+     sourceDir: src/main/java
+     sourceFile: com/amazon/opendistroforelasticsearch/security/privileges/OpenDistroSecurityIndexAccessEvaluator.java
+   - dir: target/classes
+     file: com/amazon/opendistroforelasticsearch/security/support/SnapshotRestoreHelper.class
+     sourceDir: src/main/java
+     sourceFile: com/amazon/opendistroforelasticsearch/security/support/SnapshotRestoreHelper.java
+   - dir: target/classes
+     file: com/amazon/opendistroforelasticsearch/security/user/User.class
+     sourceDir: src/main/java
+     sourceFile: com/amazon/opendistroforelasticsearch/security/user/User.java
+   - dir: target/classes
+     file: com/amazon/opendistroforelasticsearch/security/privileges/PrivilegesInterceptor.class
+     sourceDir: src/main/java
+     sourceFile: com/amazon/opendistroforelasticsearch/security/privileges/PrivilegesInterceptor.java
+   - dir: target/classes
+     file: com/amazon/opendistroforelasticsearch/security/support/WildcardMatcher.class
+     sourceDir: src/main/java
+     sourceFile: com/amazon/opendistroforelasticsearch/security/support/WildcardMatcher.java
+   - dir: target/classes
+     file: com/amazon/opendistroforelasticsearch/security/privileges/TermsAggregationEvaluator.class
+     sourceDir: src/main/java
+     sourceFile: com/amazon/opendistroforelasticsearch/security/privileges/TermsAggregationEvaluator.java
+   - dir: target/classes
+     file: com/amazon/opendistroforelasticsearch/security/configuration/ClusterInfoHolder.class
+     sourceDir: src/main/java
+     sourceFile: com/amazon/opendistroforelasticsearch/security/configuration/ClusterInfoHolder.java
+   - dir: target/classes
+     file: com/amazon/opendistroforelasticsearch/security/OpenDistroSecurityPlugin$GuiceHolder.class
+     sourceDir: src/main/java
+     sourceFile: com/amazon/opendistroforelasticsearch/security/OpenDistroSecurityPlugin.java
+   - dir: target/classes
+     file: com/amazon/opendistroforelasticsearch/security/privileges/PrivilegesEvaluator$TenantHolder.class
+     sourceDir: src/main/java
+     sourceFile: com/amazon/opendistroforelasticsearch/security/privileges/PrivilegesEvaluator.java
+   - dir: target/classes
+     file: com/amazon/opendistroforelasticsearch/security/support/Base64Helper.class
+     sourceDir: src/main/java
+     sourceFile: com/amazon/opendistroforelasticsearch/security/support/Base64Helper.java
+   - dir: target/classes
+     file: com/amazon/opendistroforelasticsearch/security/privileges/SnapshotRestoreEvaluator.class
+     sourceDir: src/main/java
+     sourceFile: com/amazon/opendistroforelasticsearch/security/privileges/SnapshotRestoreEvaluator.java
+   - dir: target/classes
+     file: com/amazon/opendistroforelasticsearch/security/resolver/IndexResolverReplacer$Resolved.class
+     sourceDir: src/main/java
+     sourceFile: com/amazon/opendistroforelasticsearch/security/resolver/IndexResolverReplacer.java
+   - dir: target/classes
+     file: com/amazon/opendistroforelasticsearch/security/resolver/IndexResolverReplacer$IndicesProvider.class
+     sourceDir: src/main/java
+     sourceFile: com/amazon/opendistroforelasticsearch/security/resolver/IndexResolverReplacer.java
+   - dir: target/classes
+     file: com/amazon/opendistroforelasticsearch/security/resolver/IndexResolverReplacer$Resolved$Builder.class
+     sourceDir: src/main/java
+     sourceFile: com/amazon/opendistroforelasticsearch/security/resolver/IndexResolverReplacer.java
+   - dir: target/classes
+     file: com/amazon/opendistroforelasticsearch/security/resolver/IndexResolverReplacer.class
+     sourceDir: src/main/java
+     sourceFile: com/amazon/opendistroforelasticsearch/security/resolver/IndexResolverReplacer.java
+   - dir: target/classes
+     file: com/amazon/opendistroforelasticsearch/security/resolver/IndexResolverReplacer$1.class
+     sourceDir: src/main/java
+     sourceFile: com/amazon/opendistroforelasticsearch/security/resolver/IndexResolverReplacer.java
+   - dir: target/classes
+     file: com/amazon/opendistroforelasticsearch/security/configuration/ConfigurationRepository.class
+     sourceDir: src/main/java
+     sourceFile: com/amazon/opendistroforelasticsearch/security/configuration/ConfigurationRepository.java
+   - dir: target/classes
+     file: com/amazon/opendistroforelasticsearch/security/support/Base64Helper$SafeObjectInputStream.class
+     sourceDir: src/main/java
+     sourceFile: com/amazon/opendistroforelasticsearch/security/support/Base64Helper.java
+   - dir: target/classes
+     file: com/amazon/opendistroforelasticsearch/security/securityconf/ConfigModel$IndexPattern.class
+     sourceDir: src/main/java
+     sourceFile: com/amazon/opendistroforelasticsearch/security/securityconf/ConfigModel.java
+   - dir: target/classes
+     file: com/amazon/opendistroforelasticsearch/security/support/SnapshotRestoreHelper$1.class
+     sourceDir: src/main/java
+     sourceFile: com/amazon/opendistroforelasticsearch/security/support/SnapshotRestoreHelper.java
+   - dir: target/classes
+     file: com/amazon/opendistroforelasticsearch/security/securityconf/ConfigModel$SecurityRoles.class
+     sourceDir: src/main/java
+     sourceFile: com/amazon/opendistroforelasticsearch/security/securityconf/ConfigModel.java
+   - dir: target/classes
+     file: com/amazon/opendistroforelasticsearch/security/securityconf/ConfigModel$SecurityRole.class
+     sourceDir: src/main/java
+     sourceFile: com/amazon/opendistroforelasticsearch/security/securityconf/ConfigModel.java
+   - dir: target/classes
+     file: com/amazon/opendistroforelasticsearch/security/securityconf/ConfigModel$TypePerm.class
+     sourceDir: src/main/java
+     sourceFile: com/amazon/opendistroforelasticsearch/security/securityconf/ConfigModel.java
+   - dir: target/classes
+     file: com/amazon/opendistroforelasticsearch/security/support/ConfigConstants$RolesMappingResolution.class
+     sourceDir: src/main/java
+     sourceFile: com/amazon/opendistroforelasticsearch/security/support/ConfigConstants.java
+ - target:
+   - dir: target/classes
+     file: com/amazon/opendistroforelasticsearch/security/support/PemKeyReader.class
+     sourceDir: src/main/java
+     sourceFile: com/amazon/opendistroforelasticsearch/security/support/PemKeyReader.java
+ - target:
+   - dir: target/classes
+     file: com/amazon/opendistroforelasticsearch/security/support/HTTPHelper.class
+     sourceDir: src/main/java
+     sourceFile: com/amazon/opendistroforelasticsearch/security/support/HTTPHelper.java
+   - dir: target/classes
+     file: com/amazon/opendistroforelasticsearch/security/user/AuthCredentials.class
+     sourceDir: src/main/java
+     sourceFile: com/amazon/opendistroforelasticsearch/security/user/AuthCredentials.java
+ - target:
+   - dir: target/classes
+     file: com/amazon/opendistroforelasticsearch/security/support/OpenDistroSecurityUtils.class
+     sourceDir: src/main/java
+     sourceFile: com/amazon/opendistroforelasticsearch/security/support/OpenDistroSecurityUtils.java
+   - dir: target/classes
+     file: com/amazon/opendistroforelasticsearch/security/support/WildcardMatcher.class
+     sourceDir: src/main/java
+     sourceFile: com/amazon/opendistroforelasticsearch/security/support/WildcardMatcher.java
+ - target:
+   - dir: target/classes
+     file: com/amazon/opendistroforelasticsearch/security/support/Base64Helper.class
+     sourceDir: src/main/java
+     sourceFile: com/amazon/opendistroforelasticsearch/security/support/Base64Helper.java
+   - dir: target/classes
+     file: com/amazon/opendistroforelasticsearch/security/support/Base64Helper$SafeObjectInputStream.class
+     sourceDir: src/main/java
+     sourceFile: com/amazon/opendistroforelasticsearch/security/support/Base64Helper.java
+ - target:
+   - dir: target/classes
+     file: com/amazon/opendistroforelasticsearch/security/http/RemoteIpDetector.class
+     sourceDir: src/main/java
+     sourceFile: com/amazon/opendistroforelasticsearch/security/http/RemoteIpDetector.java
+ - target:
+   - dir: target/test-classes
+     file: com/amazon/opendistroforelasticsearch/security/test/helper/network/SocketUtils.class
+     sourceDir: src/test/java
+     sourceFile: com/amazon/opendistroforelasticsearch/security/test/helper/network/SocketUtils.java
+   - dir: target/test-classes
+     file: com/amazon/opendistroforelasticsearch/security/test/helper/network/SocketUtils$SocketType.class
+     sourceDir: src/test/java
+     sourceFile: com/amazon/opendistroforelasticsearch/security/test/helper/network/SocketUtils.java
+ - target:
+   - dir: target/classes
+     file: com/amazon/opendistroforelasticsearch/security/OpenDistroSecurityPlugin.class
+     sourceDir: src/main/java
+     sourceFile: com/amazon/opendistroforelasticsearch/security/OpenDistroSecurityPlugin.java
+   - dir: target/classes
+     file: com/amazon/opendistroforelasticsearch/security/privileges/PrivilegesEvaluator.class
+     sourceDir: src/main/java
+     sourceFile: com/amazon/opendistroforelasticsearch/security/privileges/PrivilegesEvaluator.java
+   - dir: target/classes
+     file: com/amazon/opendistroforelasticsearch/security/support/ReflectionHelper.class
+     sourceDir: src/main/java
+     sourceFile: com/amazon/opendistroforelasticsearch/security/support/ReflectionHelper.java
+   - dir: target/classes
+     file: com/amazon/opendistroforelasticsearch/security/OpenDistroSecurityPlugin$8.class
+     sourceDir: src/main/java
+     sourceFile: com/amazon/opendistroforelasticsearch/security/OpenDistroSecurityPlugin.java
+   - dir: target/classes
+     file: com/amazon/opendistroforelasticsearch/security/support/ModuleType.class
+     sourceDir: src/main/java
+     sourceFile: com/amazon/opendistroforelasticsearch/security/support/ModuleType.java
+   - dir: target/classes
+     file: com/amazon/opendistroforelasticsearch/security/privileges/DlsFlsEvaluator.class
+     sourceDir: src/main/java
+     sourceFile: com/amazon/opendistroforelasticsearch/security/privileges/DlsFlsEvaluator.java
+   - dir: target/classes
+     file: com/amazon/opendistroforelasticsearch/security/transport/DefaultInterClusterRequestEvaluator.class
+     sourceDir: src/main/java
+     sourceFile: com/amazon/opendistroforelasticsearch/security/transport/DefaultInterClusterRequestEvaluator.java
+   - dir: target/classes
+     file: com/amazon/opendistroforelasticsearch/security/rest/OpenDistroSecurityInfoAction.class
+     sourceDir: src/main/java
+     sourceFile: com/amazon/opendistroforelasticsearch/security/rest/OpenDistroSecurityInfoAction.java
+   - dir: target/classes
+     file: com/amazon/opendistroforelasticsearch/security/OpenDistroSecurityPlugin$3.class
+     sourceDir: src/main/java
+     sourceFile: com/amazon/opendistroforelasticsearch/security/OpenDistroSecurityPlugin.java
+   - dir: target/classes
+     file: com/amazon/opendistroforelasticsearch/security/support/HeaderHelper.class
+     sourceDir: src/main/java
+     sourceFile: com/amazon/opendistroforelasticsearch/security/support/HeaderHelper.java
+   - dir: target/classes
+     file: com/amazon/opendistroforelasticsearch/security/configuration/IndexBaseConfigurationRepository.class
+     sourceDir: src/main/java
+     sourceFile: com/amazon/opendistroforelasticsearch/security/configuration/IndexBaseConfigurationRepository.java
+   - dir: target/classes
+     file: com/amazon/opendistroforelasticsearch/security/rest/OpenDistroSecurityHealthAction.class
+     sourceDir: src/main/java
+     sourceFile: com/amazon/opendistroforelasticsearch/security/rest/OpenDistroSecurityHealthAction.java
+   - dir: target/classes
+     file: com/amazon/opendistroforelasticsearch/security/configuration/ClusterInfoHolder.class
+     sourceDir: src/main/java
+     sourceFile: com/amazon/opendistroforelasticsearch/security/configuration/ClusterInfoHolder.java
+   - dir: target/classes
+     file: com/amazon/opendistroforelasticsearch/security/rest/TenantInfoAction.class
+     sourceDir: src/main/java
+     sourceFile: com/amazon/opendistroforelasticsearch/security/rest/TenantInfoAction.java
+   - dir: target/classes
+     file: com/amazon/opendistroforelasticsearch/security/auth/BackendRegistry.class
+     sourceDir: src/main/java
+     sourceFile: com/amazon/opendistroforelasticsearch/security/auth/BackendRegistry.java
+   - dir: target/classes
+     file: com/amazon/opendistroforelasticsearch/security/privileges/TermsAggregationEvaluator.class
+     sourceDir: src/main/java
+     sourceFile: com/amazon/opendistroforelasticsearch/security/privileges/TermsAggregationEvaluator.java
+   - dir: target/classes
+     file: com/amazon/opendistroforelasticsearch/security/configuration/ActionGroupHolder.class
+     sourceDir: src/main/java
+     sourceFile: com/amazon/opendistroforelasticsearch/security/configuration/ActionGroupHolder.java
+   - dir: target/classes
+     file: com/amazon/opendistroforelasticsearch/security/configuration/AdminDNs.class
+     sourceDir: src/main/java
+     sourceFile: com/amazon/opendistroforelasticsearch/security/configuration/AdminDNs.java
+   - dir: target/classes
+     file: com/amazon/opendistroforelasticsearch/security/privileges/PrivilegesInterceptor.class
+     sourceDir: src/main/java
+     sourceFile: com/amazon/opendistroforelasticsearch/security/privileges/PrivilegesInterceptor.java
+   - dir: target/classes
+     file: com/amazon/opendistroforelasticsearch/security/support/WildcardMatcher.class
+     sourceDir: src/main/java
+     sourceFile: com/amazon/opendistroforelasticsearch/security/support/WildcardMatcher.java
+   - dir: target/classes
+     file: com/amazon/opendistroforelasticsearch/security/auditlog/AuditLog.class
+     sourceDir: src/main/java
+     sourceFile: com/amazon/opendistroforelasticsearch/security/auditlog/AuditLog.java
+   - dir: target/classes
+     file: com/amazon/opendistroforelasticsearch/security/privileges/PrivilegesEvaluator$TenantHolder.class
+     sourceDir: src/main/java
+     sourceFile: com/amazon/opendistroforelasticsearch/security/privileges/PrivilegesEvaluator.java
+   - dir: target/classes
+     file: com/amazon/opendistroforelasticsearch/security/OpenDistroSecurityPlugin$7.class
+     sourceDir: src/main/java
+     sourceFile: com/amazon/opendistroforelasticsearch/security/OpenDistroSecurityPlugin.java
+   - dir: target/classes
+     file: com/amazon/opendistroforelasticsearch/security/support/Base64Helper.class
+     sourceDir: src/main/java
+     sourceFile: com/amazon/opendistroforelasticsearch/security/support/Base64Helper.java
+   - dir: target/classes
+     file: com/amazon/opendistroforelasticsearch/security/auth/BackendRegistry$2.class
+     sourceDir: src/main/java
+     sourceFile: com/amazon/opendistroforelasticsearch/security/auth/BackendRegistry.java
+   - dir: target/classes
+     file: com/amazon/opendistroforelasticsearch/security/filter/OpenDistroSecurityRestFilter.class
+     sourceDir: src/main/java
+     sourceFile: com/amazon/opendistroforelasticsearch/security/filter/OpenDistroSecurityRestFilter.java
+   - dir: target/classes
+     file: com/amazon/opendistroforelasticsearch/security/privileges/OpenDistroSecurityIndexAccessEvaluator.class
+     sourceDir: src/main/java
+     sourceFile: com/amazon/opendistroforelasticsearch/security/privileges/OpenDistroSecurityIndexAccessEvaluator.java
+   - dir: target/classes
+     file: com/amazon/opendistroforelasticsearch/security/rest/KibanaInfoAction.class
+     sourceDir: src/main/java
+     sourceFile: com/amazon/opendistroforelasticsearch/security/rest/KibanaInfoAction.java
+   - dir: target/classes
+     file: com/amazon/opendistroforelasticsearch/security/support/OpenDistroSecurityUtils.class
+     sourceDir: src/main/java
+     sourceFile: com/amazon/opendistroforelasticsearch/security/support/OpenDistroSecurityUtils.java
+   - dir: target/classes
+     file: com/amazon/opendistroforelasticsearch/security/configuration/LegacyConfigurationLoader.class
+     sourceDir: src/main/java
+     sourceFile: com/amazon/opendistroforelasticsearch/security/configuration/LegacyConfigurationLoader.java
+   - dir: target/classes
+     file: com/amazon/opendistroforelasticsearch/security/OpenDistroSecurityPlugin$4.class
+     sourceDir: src/main/java
+     sourceFile: com/amazon/opendistroforelasticsearch/security/OpenDistroSecurityPlugin.java
+   - dir: target/classes
+     file: com/amazon/opendistroforelasticsearch/security/configuration/ConfigurationLoader.class
+     sourceDir: src/main/java
+     sourceFile: com/amazon/opendistroforelasticsearch/security/configuration/ConfigurationLoader.java
+   - dir: target/classes
+     file: com/amazon/opendistroforelasticsearch/security/configuration/DlsFlsRequestValve$NoopDlsFlsRequestValve.class
+     sourceDir: src/main/java
+     sourceFile: com/amazon/opendistroforelasticsearch/security/configuration/DlsFlsRequestValve.java
+   - dir: target/classes
+     file: com/amazon/opendistroforelasticsearch/security/privileges/SnapshotRestoreEvaluator.class
+     sourceDir: src/main/java
+     sourceFile: com/amazon/opendistroforelasticsearch/security/privileges/SnapshotRestoreEvaluator.java
+   - dir: target/classes
+     file: com/amazon/opendistroforelasticsearch/security/auth/BackendRegistry$6.class
+     sourceDir: src/main/java
+     sourceFile: com/amazon/opendistroforelasticsearch/security/auth/BackendRegistry.java
+   - dir: target/classes
+     file: com/amazon/opendistroforelasticsearch/security/OpenDistroSecurityPlugin$1.class
+     sourceDir: src/main/java
+     sourceFile: com/amazon/opendistroforelasticsearch/security/OpenDistroSecurityPlugin.java
+   - dir: target/classes
+     file: com/amazon/opendistroforelasticsearch/security/support/Base64Helper$SafeObjectInputStream.class
+     sourceDir: src/main/java
+     sourceFile: com/amazon/opendistroforelasticsearch/security/support/Base64Helper.java
+   - dir: target/classes
+     file: com/amazon/opendistroforelasticsearch/security/http/OpenDistroSecurityHttpServerTransport.class
+     sourceDir: src/main/java
+     sourceFile: com/amazon/opendistroforelasticsearch/security/http/OpenDistroSecurityHttpServerTransport.java
+   - dir: target/classes
+     file: com/amazon/opendistroforelasticsearch/security/auth/BackendRegistry$3.class
+     sourceDir: src/main/java
+     sourceFile: com/amazon/opendistroforelasticsearch/security/auth/BackendRegistry.java
+   - dir: target/classes
+     file: com/amazon/opendistroforelasticsearch/security/resolver/IndexResolverReplacer.class
+     sourceDir: src/main/java
+     sourceFile: com/amazon/opendistroforelasticsearch/security/resolver/IndexResolverReplacer.java
+   - dir: target/classes
+     file: com/amazon/opendistroforelasticsearch/security/securityconf/ConfigModel.class
+     sourceDir: src/main/java
+     sourceFile: com/amazon/opendistroforelasticsearch/security/securityconf/ConfigModel.java
+   - dir: target/classes
+     file: com/amazon/opendistroforelasticsearch/security/OpenDistroSecurityPlugin$5.class
+     sourceDir: src/main/java
+     sourceFile: com/amazon/opendistroforelasticsearch/security/OpenDistroSecurityPlugin.java
+   - dir: target/classes
+     file: com/amazon/opendistroforelasticsearch/security/compliance/ComplianceIndexingOperationListener.class
+     sourceDir: src/main/java
+     sourceFile: com/amazon/opendistroforelasticsearch/security/compliance/ComplianceIndexingOperationListener.java
+   - dir: target/classes
+     file: com/amazon/opendistroforelasticsearch/security/auth/BackendRegistry$4.class
+     sourceDir: src/main/java
+     sourceFile: com/amazon/opendistroforelasticsearch/security/auth/BackendRegistry.java
+   - dir: target/classes
+     file: com/amazon/opendistroforelasticsearch/security/transport/OpenDistroSecurityInterceptor.class
+     sourceDir: src/main/java
+     sourceFile: com/amazon/opendistroforelasticsearch/security/transport/OpenDistroSecurityInterceptor.java
+   - dir: target/classes
+     file: com/amazon/opendistroforelasticsearch/security/compliance/ComplianceConfig.class
+     sourceDir: src/main/java
+     sourceFile: com/amazon/opendistroforelasticsearch/security/compliance/ComplianceConfig.java
+   - dir: target/classes
+     file: com/amazon/opendistroforelasticsearch/security/configuration/ConfigurationRepository.class
+     sourceDir: src/main/java
+     sourceFile: com/amazon/opendistroforelasticsearch/security/configuration/ConfigurationRepository.java
+   - dir: target/classes
+     file: com/amazon/opendistroforelasticsearch/security/auth/internal/InternalAuthenticationBackend.class
+     sourceDir: src/main/java
+     sourceFile: com/amazon/opendistroforelasticsearch/security/auth/internal/InternalAuthenticationBackend.java
+   - dir: target/classes
+     file: com/amazon/opendistroforelasticsearch/security/auth/BackendRegistry$5.class
+     sourceDir: src/main/java
+     sourceFile: com/amazon/opendistroforelasticsearch/security/auth/BackendRegistry.java
+   - dir: target/classes
+     file: com/amazon/opendistroforelasticsearch/security/http/XFFResolver.class
+     sourceDir: src/main/java
+     sourceFile: com/amazon/opendistroforelasticsearch/security/http/XFFResolver.java
+   - dir: target/classes
+     file: com/amazon/opendistroforelasticsearch/security/compliance/ComplianceConfig$1.class
+     sourceDir: src/main/java
+     sourceFile: com/amazon/opendistroforelasticsearch/security/compliance/ComplianceConfig.java
+   - dir: target/classes
+     file: com/amazon/opendistroforelasticsearch/security/auth/BackendRegistry$1.class
+     sourceDir: src/main/java
+     sourceFile: com/amazon/opendistroforelasticsearch/security/auth/BackendRegistry.java
+   - dir: target/classes
+     file: com/amazon/opendistroforelasticsearch/security/OpenDistroSecurityPlugin$2.class
+     sourceDir: src/main/java
+     sourceFile: com/amazon/opendistroforelasticsearch/security/OpenDistroSecurityPlugin.java
+   - dir: target/classes
+     file: com/amazon/opendistroforelasticsearch/security/auditlog/AuditLogSslExceptionHandler.class
+     sourceDir: src/main/java
+     sourceFile: com/amazon/opendistroforelasticsearch/security/auditlog/AuditLogSslExceptionHandler.java
+   - dir: target/classes
+     file: com/amazon/opendistroforelasticsearch/security/auth/UserInjector.class
+     sourceDir: src/main/java
+     sourceFile: com/amazon/opendistroforelasticsearch/security/auth/UserInjector.java
+   - dir: target/classes
+     file: com/amazon/opendistroforelasticsearch/security/http/OpenDistroSecurityNonSslHttpServerTransport.class
+     sourceDir: src/main/java
+     sourceFile: com/amazon/opendistroforelasticsearch/security/http/OpenDistroSecurityNonSslHttpServerTransport.java
+   - dir: target/classes
+     file: com/amazon/opendistroforelasticsearch/security/auditlog/NullAuditLog.class
+     sourceDir: src/main/java
+     sourceFile: com/amazon/opendistroforelasticsearch/security/auditlog/NullAuditLog.java
+   - dir: target/classes
+     file: com/amazon/opendistroforelasticsearch/security/configuration/IndexBaseConfigurationRepository$1.class
+     sourceDir: src/main/java
+     sourceFile: com/amazon/opendistroforelasticsearch/security/configuration/IndexBaseConfigurationRepository.java
+   - dir: target/classes
+     file: com/amazon/opendistroforelasticsearch/security/support/ModuleInfo.class
+     sourceDir: src/main/java
+     sourceFile: com/amazon/opendistroforelasticsearch/security/support/ModuleInfo.java
+   - dir: target/classes
+     file: com/amazon/opendistroforelasticsearch/security/configuration/CompatConfig.class
+     sourceDir: src/main/java
+     sourceFile: com/amazon/opendistroforelasticsearch/security/configuration/CompatConfig.java
+   - dir: target/classes
+     file: com/amazon/opendistroforelasticsearch/security/configuration/OpenDistroSecurityIndexSearcherWrapper.class
+     sourceDir: src/main/java
+     sourceFile: com/amazon/opendistroforelasticsearch/security/configuration/OpenDistroSecurityIndexSearcherWrapper.java
+   - dir: target/classes
+     file: com/amazon/opendistroforelasticsearch/security/filter/OpenDistroSecurityFilter.class
+     sourceDir: src/main/java
+     sourceFile: com/amazon/opendistroforelasticsearch/security/filter/OpenDistroSecurityFilter.java
+   - dir: target/classes
+     file: com/amazon/opendistroforelasticsearch/security/support/ConfigConstants$RolesMappingResolution.class
+     sourceDir: src/main/java
+     sourceFile: com/amazon/opendistroforelasticsearch/security/support/ConfigConstants.java
+   - dir: target/classes
+     file: com/amazon/opendistroforelasticsearch/security/filter/OpenDistroSecurityRestFilter$1.class
+     sourceDir: src/main/java
+     sourceFile: com/amazon/opendistroforelasticsearch/security/filter/OpenDistroSecurityRestFilter.java
+   - dir: target/classes
+     file: com/amazon/opendistroforelasticsearch/security/OpenDistroSecurityPlugin$6.class
+     sourceDir: src/main/java
+     sourceFile: com/amazon/opendistroforelasticsearch/security/OpenDistroSecurityPlugin.java
+ - target:
+   - dir: target/classes
+     file: com/amazon/opendistroforelasticsearch/security/action/configupdate/ConfigUpdateNodeResponse.class
+     sourceDir: src/main/java
+     sourceFile: com/amazon/opendistroforelasticsearch/security/action/configupdate/ConfigUpdateNodeResponse.java
+ - target:
+   - dir: target/test-classes
+     file: com/amazon/opendistroforelasticsearch/security/test/AbstractSecurityUnitTest.class
+     sourceDir: src/test/java
+     sourceFile: com/amazon/opendistroforelasticsearch/security/test/AbstractSecurityUnitTest.java
+   - dir: target/classes
+     file: com/amazon/opendistroforelasticsearch/security/action/configupdate/ConfigUpdateRequest.class
+     sourceDir: src/main/java
+     sourceFile: com/amazon/opendistroforelasticsearch/security/action/configupdate/ConfigUpdateRequest.java
+   - dir: target/test-classes
+     file: com/amazon/opendistroforelasticsearch/security/test/NodeSettingsSupplier.class
+     sourceDir: src/test/java
+     sourceFile: com/amazon/opendistroforelasticsearch/security/test/NodeSettingsSupplier.java
+   - dir: target/classes
+     file: com/amazon/opendistroforelasticsearch/security/support/WildcardMatcher.class
+     sourceDir: src/main/java
+     sourceFile: com/amazon/opendistroforelasticsearch/security/support/WildcardMatcher.java
+   - dir: target/test-classes
+     file: com/amazon/opendistroforelasticsearch/security/test/AbstractSecurityUnitTest$2.class
+     sourceDir: src/test/java
+     sourceFile: com/amazon/opendistroforelasticsearch/security/test/AbstractSecurityUnitTest.java
+   - dir: target/test-classes
+     file: com/amazon/opendistroforelasticsearch/security/test/helper/cluster/ClusterInfo.class
+     sourceDir: src/test/java
+     sourceFile: com/amazon/opendistroforelasticsearch/security/test/helper/cluster/ClusterInfo.java
+   - dir: target/test-classes
+     file: com/amazon/opendistroforelasticsearch/security/test/helper/file/FileHelper.class
+     sourceDir: src/test/java
+     sourceFile: com/amazon/opendistroforelasticsearch/security/test/helper/file/FileHelper.java
+   - dir: target/test-classes
+     file: com/amazon/opendistroforelasticsearch/security/test/AbstractSecurityUnitTest$1.class
+     sourceDir: src/test/java
+     sourceFile: com/amazon/opendistroforelasticsearch/security/test/AbstractSecurityUnitTest.java
+   - dir: target/test-classes
+     file: com/amazon/opendistroforelasticsearch/security/test/helper/rest/RestHelper$HttpResponse.class
+     sourceDir: src/test/java
+     sourceFile: com/amazon/opendistroforelasticsearch/security/test/helper/rest/RestHelper.java
+   - dir: target/test-classes
+     file: com/amazon/opendistroforelasticsearch/security/test/DynamicSecurityConfig.class
+     sourceDir: src/test/java
+     sourceFile: com/amazon/opendistroforelasticsearch/security/test/DynamicSecurityConfig.java
+   - dir: target/test-classes
+     file: com/amazon/opendistroforelasticsearch/security/test/AbstractSecurityUnitTest$TransportClientImpl.class
+     sourceDir: src/test/java
+     sourceFile: com/amazon/opendistroforelasticsearch/security/test/AbstractSecurityUnitTest.java
+ - target:
+   - dir: target/classes
+     file: com/amazon/opendistroforelasticsearch/security/compliance/ComplianceConfig.class
+     sourceDir: src/main/java
+     sourceFile: com/amazon/opendistroforelasticsearch/security/compliance/ComplianceConfig.java
+   - dir: target/classes
+     file: com/amazon/opendistroforelasticsearch/security/support/SnapshotRestoreHelper.class
+     sourceDir: src/main/java
+     sourceFile: com/amazon/opendistroforelasticsearch/security/support/SnapshotRestoreHelper.java
+   - dir: target/classes
+     file: com/amazon/opendistroforelasticsearch/security/resolver/IndexResolverReplacer$Resolved.class
+     sourceDir: src/main/java
+     sourceFile: com/amazon/opendistroforelasticsearch/security/resolver/IndexResolverReplacer.java
+   - dir: target/classes
+     file: com/amazon/opendistroforelasticsearch/security/resolver/IndexResolverReplacer$2.class
+     sourceDir: src/main/java
+     sourceFile: com/amazon/opendistroforelasticsearch/security/resolver/IndexResolverReplacer.java
+   - dir: target/classes
+     file: com/amazon/opendistroforelasticsearch/security/resolver/IndexResolverReplacer$IndicesProvider.class
+     sourceDir: src/main/java
+     sourceFile: com/amazon/opendistroforelasticsearch/security/resolver/IndexResolverReplacer.java
+   - dir: target/classes
+     file: com/amazon/opendistroforelasticsearch/security/support/WildcardMatcher.class
+     sourceDir: src/main/java
+     sourceFile: com/amazon/opendistroforelasticsearch/security/support/WildcardMatcher.java
+   - dir: target/classes
+     file: com/amazon/opendistroforelasticsearch/security/support/SnapshotRestoreHelper$1.class
+     sourceDir: src/main/java
+     sourceFile: com/amazon/opendistroforelasticsearch/security/support/SnapshotRestoreHelper.java
+   - dir: target/classes
+     file: com/amazon/opendistroforelasticsearch/security/auditlog/AuditLog.class
+     sourceDir: src/main/java
+     sourceFile: com/amazon/opendistroforelasticsearch/security/auditlog/AuditLog.java
+   - dir: target/classes
+     file: com/amazon/opendistroforelasticsearch/security/compliance/ComplianceConfig$1.class
+     sourceDir: src/main/java
+     sourceFile: com/amazon/opendistroforelasticsearch/security/compliance/ComplianceConfig.java
+   - dir: target/classes
+     file: com/amazon/opendistroforelasticsearch/security/resolver/IndexResolverReplacer.class
+     sourceDir: src/main/java
+     sourceFile: com/amazon/opendistroforelasticsearch/security/resolver/IndexResolverReplacer.java
+   - dir: target/classes
+     file: com/amazon/opendistroforelasticsearch/security/OpenDistroSecurityPlugin$GuiceHolder.class
+     sourceDir: src/main/java
+     sourceFile: com/amazon/opendistroforelasticsearch/security/OpenDistroSecurityPlugin.java
+   - dir: target/classes
+     file: com/amazon/opendistroforelasticsearch/security/resolver/IndexResolverReplacer$Resolved$Builder.class
+     sourceDir: src/main/java
+     sourceFile: com/amazon/opendistroforelasticsearch/security/resolver/IndexResolverReplacer.java
+   - dir: target/classes
+     file: com/amazon/opendistroforelasticsearch/security/configuration/ClusterInfoHolder.class
+     sourceDir: src/main/java
+     sourceFile: com/amazon/opendistroforelasticsearch/security/configuration/ClusterInfoHolder.java
+ - target:
+   - dir: target/classes
+     file: com/amazon/opendistroforelasticsearch/security/resolver/IndexResolverReplacer$Resolved.class
+     sourceDir: src/main/java
+     sourceFile: com/amazon/opendistroforelasticsearch/security/resolver/IndexResolverReplacer.java
+   - dir: target/classes
+     file: com/amazon/opendistroforelasticsearch/security/resolver/IndexResolverReplacer$1.class
+     sourceDir: src/main/java
+     sourceFile: com/amazon/opendistroforelasticsearch/security/resolver/IndexResolverReplacer.java
+   - dir: target/classes
+     file: com/amazon/opendistroforelasticsearch/security/resolver/IndexResolverReplacer.class
+     sourceDir: src/main/java
+     sourceFile: com/amazon/opendistroforelasticsearch/security/resolver/IndexResolverReplacer.java
+ - target:
+   - dir: target/classes
+     file: com/amazon/opendistroforelasticsearch/security/securityconf/ConfigModel$IndexPattern.class
+     sourceDir: src/main/java
+     sourceFile: com/amazon/opendistroforelasticsearch/security/securityconf/ConfigModel.java
+   - dir: target/classes
+     file: com/amazon/opendistroforelasticsearch/security/user/User.class
+     sourceDir: src/main/java
+     sourceFile: com/amazon/opendistroforelasticsearch/security/user/User.java
+   - dir: target/classes
+     file: com/amazon/opendistroforelasticsearch/security/securityconf/ConfigModel.class
+     sourceDir: src/main/java
+     sourceFile: com/amazon/opendistroforelasticsearch/security/securityconf/ConfigModel.java
+   - dir: target/classes
+     file: com/amazon/opendistroforelasticsearch/security/support/WildcardMatcher.class
+     sourceDir: src/main/java
+     sourceFile: com/amazon/opendistroforelasticsearch/security/support/WildcardMatcher.java
+   - dir: target/classes
+     file: com/amazon/opendistroforelasticsearch/security/securityconf/ConfigModel$TypePerm.class
+     sourceDir: src/main/java
+     sourceFile: com/amazon/opendistroforelasticsearch/security/securityconf/ConfigModel.java
+ - target:
+   - dir: target/classes
+     file: com/amazon/opendistroforelasticsearch/security/securityconf/ConfigModel$SecurityRoles.class
+     sourceDir: src/main/java
+     sourceFile: com/amazon/opendistroforelasticsearch/security/securityconf/ConfigModel.java
+   - dir: target/classes
+     file: com/amazon/opendistroforelasticsearch/security/resolver/IndexResolverReplacer$Resolved.class
+     sourceDir: src/main/java
+     sourceFile: com/amazon/opendistroforelasticsearch/security/resolver/IndexResolverReplacer.java
+   - dir: target/classes
+     file: com/amazon/opendistroforelasticsearch/security/user/User.class
+     sourceDir: src/main/java
+     sourceFile: com/amazon/opendistroforelasticsearch/security/user/User.java
+   - dir: target/classes
+     file: com/amazon/opendistroforelasticsearch/security/securityconf/ConfigModel.class
+     sourceDir: src/main/java
+     sourceFile: com/amazon/opendistroforelasticsearch/security/securityconf/ConfigModel.java
+   - dir: target/classes
+     file: com/amazon/opendistroforelasticsearch/security/securityconf/ConfigModel$IndexPattern.class
+     sourceDir: src/main/java
+     sourceFile: com/amazon/opendistroforelasticsearch/security/securityconf/ConfigModel.java
+   - dir: target/classes
+     file: com/amazon/opendistroforelasticsearch/security/support/WildcardMatcher.class
+     sourceDir: src/main/java
+     sourceFile: com/amazon/opendistroforelasticsearch/security/support/WildcardMatcher.java
+   - dir: target/classes
+     file: com/amazon/opendistroforelasticsearch/security/securityconf/ConfigModel$SecurityRole.class
+     sourceDir: src/main/java
+     sourceFile: com/amazon/opendistroforelasticsearch/security/securityconf/ConfigModel.java
+   - dir: target/classes
+     file: com/amazon/opendistroforelasticsearch/security/resolver/IndexResolverReplacer.class
+     sourceDir: src/main/java
+     sourceFile: com/amazon/opendistroforelasticsearch/security/resolver/IndexResolverReplacer.java
+   - dir: target/classes
+     file: com/amazon/opendistroforelasticsearch/security/securityconf/ConfigModel$TypePerm.class
+     sourceDir: src/main/java
+     sourceFile: com/amazon/opendistroforelasticsearch/security/securityconf/ConfigModel.java
+   - dir: target/classes
+     file: com/amazon/opendistroforelasticsearch/security/securityconf/ConfigModel$1.class
+     sourceDir: src/main/java
+     sourceFile: com/amazon/opendistroforelasticsearch/security/securityconf/ConfigModel.java
+ - target:
+   - dir: target/classes
+     file: com/amazon/opendistroforelasticsearch/security/support/HeaderHelper.class
+     sourceDir: src/main/java
+     sourceFile: com/amazon/opendistroforelasticsearch/security/support/HeaderHelper.java
+   - dir: target/classes
+     file: com/amazon/opendistroforelasticsearch/security/support/Base64Helper$SafeObjectInputStream.class
+     sourceDir: src/main/java
+     sourceFile: com/amazon/opendistroforelasticsearch/security/support/Base64Helper.java
+   - dir: target/classes
+     file: com/amazon/opendistroforelasticsearch/security/support/Base64Helper.class
+     sourceDir: src/main/java
+     sourceFile: com/amazon/opendistroforelasticsearch/security/support/Base64Helper.java
+ - target:
+   - dir: target/classes
+     file: com/amazon/opendistroforelasticsearch/security/securityconf/ConfigModel$SecurityRole.class
+     sourceDir: src/main/java
+     sourceFile: com/amazon/opendistroforelasticsearch/security/securityconf/ConfigModel.java
+   - dir: target/classes
+     file: com/amazon/opendistroforelasticsearch/security/resolver/IndexResolverReplacer$Resolved.class
+     sourceDir: src/main/java
+     sourceFile: com/amazon/opendistroforelasticsearch/security/resolver/IndexResolverReplacer.java
+   - dir: target/classes
+     file: com/amazon/opendistroforelasticsearch/security/user/User.class
+     sourceDir: src/main/java
+     sourceFile: com/amazon/opendistroforelasticsearch/security/user/User.java
+   - dir: target/classes
+     file: com/amazon/opendistroforelasticsearch/security/securityconf/ConfigModel.class
+     sourceDir: src/main/java
+     sourceFile: com/amazon/opendistroforelasticsearch/security/securityconf/ConfigModel.java
+   - dir: target/classes
+     file: com/amazon/opendistroforelasticsearch/security/securityconf/ConfigModel$IndexPattern.class
+     sourceDir: src/main/java
+     sourceFile: com/amazon/opendistroforelasticsearch/security/securityconf/ConfigModel.java
+   - dir: target/classes
+     file: com/amazon/opendistroforelasticsearch/security/support/WildcardMatcher.class
+     sourceDir: src/main/java
+     sourceFile: com/amazon/opendistroforelasticsearch/security/support/WildcardMatcher.java
+   - dir: target/classes
+     file: com/amazon/opendistroforelasticsearch/security/resolver/IndexResolverReplacer.class
+     sourceDir: src/main/java
+     sourceFile: com/amazon/opendistroforelasticsearch/security/resolver/IndexResolverReplacer.java
+   - dir: target/classes
+     file: com/amazon/opendistroforelasticsearch/security/securityconf/ConfigModel$Tenant.class
+     sourceDir: src/main/java
+     sourceFile: com/amazon/opendistroforelasticsearch/security/securityconf/ConfigModel.java
+   - dir: target/classes
+     file: com/amazon/opendistroforelasticsearch/security/securityconf/ConfigModel$TypePerm.class
+     sourceDir: src/main/java
+     sourceFile: com/amazon/opendistroforelasticsearch/security/securityconf/ConfigModel.java
+   - dir: target/classes
+     file: com/amazon/opendistroforelasticsearch/security/securityconf/ConfigModel$1.class
+     sourceDir: src/main/java
+     sourceFile: com/amazon/opendistroforelasticsearch/security/securityconf/ConfigModel.java
+ - target:
+   - dir: target/classes
+     file: com/amazon/opendistroforelasticsearch/security/securityconf/ConfigModel$Tenant.class
+     sourceDir: src/main/java
+     sourceFile: com/amazon/opendistroforelasticsearch/security/securityconf/ConfigModel.java
+   - dir: target/classes
+     file: com/amazon/opendistroforelasticsearch/security/securityconf/ConfigModel$1.class
+     sourceDir: src/main/java
+     sourceFile: com/amazon/opendistroforelasticsearch/security/securityconf/ConfigModel.java
+ - target:
+   - dir: target/classes
+     file: com/amazon/opendistroforelasticsearch/security/support/ModuleInfo.class
+     sourceDir: src/main/java
+     sourceFile: com/amazon/opendistroforelasticsearch/security/support/ModuleInfo.java
+   - dir: target/classes
+     file: com/amazon/opendistroforelasticsearch/security/support/ModuleType.class
+     sourceDir: src/main/java
+     sourceFile: com/amazon/opendistroforelasticsearch/security/support/ModuleType.java
+ - target:
+   - dir: target/classes
+     file: com/amazon/opendistroforelasticsearch/security/securityconf/ConfigModel$TypePerm.class
+     sourceDir: src/main/java
+     sourceFile: com/amazon/opendistroforelasticsearch/security/securityconf/ConfigModel.java
+   - dir: target/classes
+     file: com/amazon/opendistroforelasticsearch/security/securityconf/ConfigModel$1.class
+     sourceDir: src/main/java
+     sourceFile: com/amazon/opendistroforelasticsearch/security/securityconf/ConfigModel.java
+   - dir: target/classes
+     file: com/amazon/opendistroforelasticsearch/security/securityconf/ConfigModel.class
+     sourceDir: src/main/java
+     sourceFile: com/amazon/opendistroforelasticsearch/security/securityconf/ConfigModel.java
+ - target:
+   - dir: target/test-classes
+     file: com/amazon/opendistroforelasticsearch/security/test/helper/rest/RestHelper$HttpResponse.class
+     sourceDir: src/test/java
+     sourceFile: com/amazon/opendistroforelasticsearch/security/test/helper/rest/RestHelper.java
+   - dir: target/test-classes
+     file: com/amazon/opendistroforelasticsearch/security/test/helper/rest/RestHelper.class
+     sourceDir: src/test/java
+     sourceFile: com/amazon/opendistroforelasticsearch/security/test/helper/rest/RestHelper.java
+ - target:
+   - dir: target/test-classes
+     file: com/amazon/opendistroforelasticsearch/security/test/DynamicSecurityConfig.class
+     sourceDir: src/test/java
+     sourceFile: com/amazon/opendistroforelasticsearch/security/test/DynamicSecurityConfig.java
+   - dir: target/test-classes
+     file: com/amazon/opendistroforelasticsearch/security/test/helper/file/FileHelper.class
+     sourceDir: src/test/java
+     sourceFile: com/amazon/opendistroforelasticsearch/security/test/helper/file/FileHelper.java
